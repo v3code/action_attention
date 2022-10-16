@@ -10,7 +10,7 @@ register(
 register(
     'ShapesEval-v0',
     entry_point='action_attention.envs.block_pushing:BlockPushing',
-    max_episode_steps=10,
+    max_episode_steps=50,
     kwargs={'render_type': 'shapes'},
 )
 
@@ -24,6 +24,6 @@ register(
 register(
     'CubesEval-v0',
     entry_point='action_attention.envs.block_pushing:BlockPushing',
-    max_episode_steps=10,
+    max_episode_steps=50,
     kwargs={'render_type': 'cubes'},
 )

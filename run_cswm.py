@@ -80,7 +80,7 @@ def main(seed, use_hard_attention, use_soft_attention, device, learning_rate, ba
     ))
 
     # evaluate model
-    for i in [1, 5, 10]:
+    for i in [1, 5, 10, 20, 30]:
 
         stack.register(InitPathLoader(
             root_path=eval_dataset_path,
