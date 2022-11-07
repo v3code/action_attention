@@ -159,12 +159,10 @@ class Train(StackElement):
             for batch_idx, data_batch in enumerate(train_loader):
 
                 data_batch = [tensor.to(self.device) for tensor in data_batch]
-                print(data_batch[0].shape)
                 optimizer.zero_grad()
 
                 if viz:
                     self.logger.info("Visualizing inputs.")
-                    print(data_batch[1][0])
                     for i in range(5):
                         plt.subplot(2, 5, 1 + i)
                         plt.imshow(data_batch[0][0, i].cpu().numpy().transpose((1, 2, 0)))
