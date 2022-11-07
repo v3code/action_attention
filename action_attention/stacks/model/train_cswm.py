@@ -220,6 +220,8 @@ class Eval(StackElement):
                 if observations[0].size(0) != self.batch_size:
                     continue
 
+                print(actions[0])
+
                 obs = observations[0]
                 next_obs = observations[-1]
                 if self.dedup:

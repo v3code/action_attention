@@ -24,7 +24,7 @@ def config():
     seed = None
     use_hard_attention = False
     use_soft_attention = False
-    device = "cuda:0"
+    device = "cpu"
     learning_rate = 5e-4
     batch_size = 1024
     epochs = 100

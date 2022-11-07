@@ -149,6 +149,5 @@ class CSWM(nn.Module):
         return self.obj_encoder(self.obj_extractor(obs))
 
     def forward_transition(self, state, action):
-
         pred_trans, _, _ = self.transition_model([state, action, False])
         return state + pred_trans

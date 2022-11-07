@@ -31,6 +31,14 @@ class CSWMSoftAttention(CSWM):
             num_layers=self.num_gnn_layers
         )
 
+    def forward_weights(self, state, action):
+
+        if len(action.shape) == 1:
+            action = to_one_hot(action, self.action_dim)
+        else:
+            assert len(action.shape) == 2
+        return self.attention.forward_weights([state, action])
+
     def forward_transition(self, state, action):
 
         if len(action.shape) == 1:
