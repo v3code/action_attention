@@ -2,13 +2,14 @@ import torch
 
 from action_attention import utils
 from action_attention.stack import Stack, Seeds, SacredLog, Sieve
-from action_attention.stacks.model.train_cswm import InitModel, InitTransitionsLoader, InitPathLoader, Train, Eval
+from action_attention.stacks.model.train_cswm import InitModel, InitTransitionsLoader, InitPathLoader, Train, Eval, \
+    InitTransitionsLoaderAtari, InitPathLoaderAtari
 from action_attention.stacks.model.slot_correlation import MeasureSlotCorrelation
 from action_attention import paths
 from action_attention.constants import Constants
 
-ex = utils.setup_experiment("config/cswm.json")
-ex.add_config(paths.CFG_MODEL_CSWM)
+ex = utils.setup_experiment("config/pong.json")
+ex.add_config(paths.CFG_MODEL_PONG_CSWM)
 
 
 @ex.capture()
@@ -62,7 +63,7 @@ def main(seed, use_hard_attention, use_soft_attention, device, learning_rate, ba
 
     if model_load_path is None:
         # train model
-        stack.register(InitTransitionsLoader(
+        stack.register(InitTransitionsLoaderAtari(
             root_path=dataset_path,
             batch_size=batch_size,
             factored_actions=False
@@ -85,7 +86,7 @@ def main(seed, use_hard_attention, use_soft_attention, device, learning_rate, ba
     # evaluate model
     for i in [1, 5, 10, 20, 50]:
 
-        stack.register(InitPathLoader(
+        stack.register(InitPathLoaderAtari(
             root_path=eval_dataset_path,
             path_length=i,
             batch_size=100,
@@ -109,7 +110,7 @@ def main(seed, use_hard_attention, use_soft_attention, device, learning_rate, ba
         ))
 
     # calculate correlation between slots
-    stack.register(InitPathLoader(
+    stack.register(InitPathLoaderAtari(
         root_path=eval_dataset_path,
         path_length=10,
         batch_size=100,

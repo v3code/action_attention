@@ -5,6 +5,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 from torch.utils import data as torch_data
+
+from ...loaders.PathDatasetAtari import PathDatasetAtari
+from ...loaders.TransitionsDatasetAtari import TransitionsDatasetAtari
 from ...stack import StackElement
 from ...constants import Constants
 from ...models.CSWM import CSWM
@@ -50,6 +53,39 @@ class InitModel(StackElement):
         optimizer = torch.optim.Adam(model.parameters(), lr=self.learning_rate)
         return {Constants.MODEL: model, Constants.OPTIM: optimizer}
 
+class InitTransitionsLoaderAtari(StackElement):
+    # Initialize training loader.
+    def __init__(self, root_path, batch_size, factored_actions=False):
+
+        super().__init__()
+        self.root_path = root_path
+        self.batch_size = batch_size
+        self.factored_actions = factored_actions
+        self.OUTPUT_KEYS = {Constants.TRAIN_LOADER}
+
+    def run(self, bundle: dict, viz=False) -> dict:
+
+        dataset = TransitionsDatasetAtari(self.root_path, self.factored_actions)
+        train_loader = torch_data.DataLoader(dataset, batch_size=self.batch_size, shuffle=True, num_workers=16)
+        return {Constants.TRAIN_LOADER: train_loader}
+
+
+class InitPathLoaderAtari(StackElement):
+    # Initialize evaluation loader.
+    def __init__(self, root_path, path_length, batch_size, factored_actions=False):
+
+        super().__init__()
+        self.root_path = root_path
+        self.path_length = path_length
+        self.batch_size = batch_size
+        self.factored_actions = factored_actions
+        self.OUTPUT_KEYS = {Constants.EVAL_LOADER}
+
+    def run(self, bundle: dict, viz=False) -> dict:
+
+        dataset = PathDatasetAtari(self.root_path, self.path_length, self.factored_actions)
+        eval_loader = torch_data.DataLoader(dataset, batch_size=self.batch_size, shuffle=False, num_workers=4)
+        return {Constants.EVAL_LOADER: eval_loader}
 
 class InitTransitionsLoader(StackElement):
     # Initialize training loader.
@@ -123,6 +159,7 @@ class Train(StackElement):
             for batch_idx, data_batch in enumerate(train_loader):
 
                 data_batch = [tensor.to(self.device) for tensor in data_batch]
+                print(data_batch[0].shape)
                 optimizer.zero_grad()
 
                 if viz:
@@ -219,8 +256,6 @@ class Eval(StackElement):
 
                 if observations[0].size(0) != self.batch_size:
                     continue
-
-                print(actions[0])
 
                 obs = observations[0]
                 next_obs = observations[-1]

@@ -37,7 +37,7 @@ def crop_normalize(img, crop_ratio):
 
 class CollectRandomAtariAndSave(StackElement):
     # Collect data using a random policy. Save states as PNG images, and actions and positions as pickles.
-    STATE_TEMPLATE = os.path.join("e_{:d}", "s_t_{:d}.png")
+    STATE_TEMPLATE = os.path.join("e_{:d}", "s_t_{:d}.npy")
     ACTIONS_TEMPLATE = "actions.pkl"
     POSITIONS_TEMPLATE = "positions.pkl"
 
@@ -63,22 +63,26 @@ class CollectRandomAtariAndSave(StackElement):
 
         for ep_idx in range(self.num_episodes):
 
-            obs = env.reset()
+            prev_obs = env.reset()
             step_idx = 0
             if self.warmstart:
                 for _ in range(self.warmstart):
                     action = env.action_space.sample()
-                    obs, _, _, _ = env.step(action)
+                    prev_obs, _, _, _ = env.step(action)
 
 
 
             if self.crop:
+                prev_obs = crop_normalize(prev_obs, self.crop)
+
+            obs, _, _, _ = env.step(0)
+
+            if self.crop:
                 obs = crop_normalize(obs, self.crop)
 
-            self.save_image(
-                ep_idx, step_idx,
-                utils.float_0_1_image_to_uint8(obs)
-            )
+            self.save_obs(ep_idx, step_idx, obs, prev_obs)
+            prev_obs = obs
+
             positions[ep_idx].append(cp.deepcopy(np.array(env.unwrapped._get_ram(), dtype=np.int32)))
 
             while True:
@@ -91,14 +95,14 @@ class CollectRandomAtariAndSave(StackElement):
 
                 if self.crop:
                     obs = crop_normalize(obs, self.crop)
-
                 actions[ep_idx].append(action)
                 step_idx += 1
-                self.save_image(
+                self.save_obs(
                     ep_idx, step_idx,
-                    utils.float_0_1_image_to_uint8(obs)
+                    obs, prev_obs
                 )
                 positions[ep_idx].append(cp.deepcopy(np.array(env.unwrapped._get_ram(), dtype=np.int32)))
+                prev_obs = obs
 
                 if step_idx >= self.num_steps:
                     break
@@ -114,11 +118,13 @@ class CollectRandomAtariAndSave(StackElement):
 
         return {}
 
-    def save_image(self, ep, step, img):
+    def save_obs(self, ep, step, obs, prev_obs):
 
         save_path = os.path.join(self.save_path, self.STATE_TEMPLATE.format(ep, step))
         utils.maybe_create_dirs(utils.get_dir_name(save_path))
-        imsave(save_path, img, check_contrast=False)
+        result = np.concatenate((obs, prev_obs), axis=2)
+        np.save(save_path, result)
+
 
     def save_actions(self, actions):
 
