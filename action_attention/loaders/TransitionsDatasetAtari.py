@@ -19,10 +19,8 @@ class TransitionsDatasetAtari(Dataset):
         self.idx2episode = []
         self.num_steps = 0
         self.actions = None
-        self.positions = None
 
         self.load_actions()
-        self.load_positions()
         self.build_idx2episode()
 
     def __getitem__(self, idx):
@@ -51,28 +49,8 @@ class TransitionsDatasetAtari(Dataset):
         with open(load_path, "rb") as f:
             self.actions = pickle.load(f)
 
-    def load_positions(self):
-
-        load_path = os.path.join(self.root_path, self.POSITIONS_TEMPLATE)
-        if not os.path.isfile(load_path):
-            raise ValueError("Positions not found.")
-        with open(load_path, "rb") as f:
-            self.positions = pickle.load(f)
 
     def load_image(self, ep, step):
 
         load_path = os.path.join(self.root_path, self.STATE_TEMPLATE.format(ep, step))
         return np.load(load_path)
-
-    def obj_action_to_pos_action(self, ep, step):
-
-        action = self.actions[ep][step]
-        obj_idx = action // 4
-        dir_idx = action % 4
-
-        position = self.positions[ep][step][obj_idx]
-        new_action = np.zeros(5 + 5 + 4, dtype=np.float32)
-        new_action[position[0]] = 1
-        new_action[position[1] + 5] = 1
-        new_action[dir_idx + 10] = 1
-        return new_action
