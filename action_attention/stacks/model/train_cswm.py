@@ -322,10 +322,11 @@ class Eval(StackElement):
                 pred_states.append(pred_state.cpu())
                 next_states.append(next_state.cpu())
                 if self.dedup:
-                    next_ids.append(next_id.cpu())
+                    next_ids.append(next_id.cpu().numpy())
 
             pred_state_cat = torch.cat(pred_states, dim=0)
             next_state_cat = torch.cat(next_states, dim=0)
+
             if self.dedup:
                 next_ids_cat = np.concatenate(next_ids, axis=0)
 
@@ -394,6 +395,10 @@ class Eval(StackElement):
 
             reciprocal_ranks = torch.reciprocal(ranks.double() + 1)
             rr_sum += reciprocal_ranks.sum().item()
+
+            pred_states = []
+            next_states = []
+            next_ids = []
 
         res = dict()
 
