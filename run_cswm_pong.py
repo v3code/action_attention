@@ -37,11 +37,12 @@ def config():
     eval_dataset_path = "data/shapes_eval"
     viz_names = None
     model_conf_name = None
+    eval_steps = '1, 5, 10'
 
 
 @ex.automain
 def main(seed, use_hard_attention, use_soft_attention, device, learning_rate, batch_size, epochs, model_save_path,
-         model_load_path, dataset_path, eval_dataset_path, viz_names):
+         model_load_path, dataset_path, eval_dataset_path, viz_names, eval_steps):
 
     model_config = get_model_config()
     logger = utils.Logger()
@@ -84,7 +85,7 @@ def main(seed, use_hard_attention, use_soft_attention, device, learning_rate, ba
     ))
 
     # evaluate model
-    for i in [1, 5, 10, 20, 50]:
+    for i in eval_steps:
 
         stack.register(InitPathLoaderAtari(
             root_path=eval_dataset_path,
@@ -112,7 +113,7 @@ def main(seed, use_hard_attention, use_soft_attention, device, learning_rate, ba
     # calculate correlation between slots
     stack.register(InitPathLoaderAtari(
         root_path=eval_dataset_path,
-        path_length=10,
+        path_length=max(eval_steps),
         batch_size=100,
         factored_actions=False
     ))
