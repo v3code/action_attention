@@ -96,7 +96,7 @@ def main(seed, use_hard_attention, use_soft_attention, device, learning_rate, ba
             device=device,
             batch_size=100,
             num_steps=i,
-            dedup=False
+            dedup=True
         ))
         keys = [*[Constants.HITS.name + "_at_{:d}".format(k) for k in Eval.HITS_AT], Constants.MRR]
         stack.register(SacredLog(
