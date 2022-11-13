@@ -39,7 +39,7 @@ class CollectRandomAtariAndSave(StackElement):
     # Collect data using a random policy. Save states as PNG images, and actions and positions as pickles.
     STATE_TEMPLATE = os.path.join("e_{:d}", "s_t_{:d}.npy")
     ACTIONS_TEMPLATE = "actions.pkl"
-    POSITIONS_TEMPLATE = "positions.pkl"
+    STATE_IDS_TEMPLATE = "state_ids.pkl"
 
     def __init__(self, save_path, num_episodes, num_steps, crop=None, warmstart=None, factored_actions=True, ):
 
@@ -59,7 +59,7 @@ class CollectRandomAtariAndSave(StackElement):
 
         env = bundle[Constants.ENV]
         actions = [[] for _ in range(self.num_episodes)]
-        positions = [[] for _ in range(self.num_episodes)]
+        state_ids = [[] for _ in range(self.num_episodes)]
 
         for ep_idx in range(self.num_episodes):
 
@@ -83,7 +83,7 @@ class CollectRandomAtariAndSave(StackElement):
             self.save_obs(ep_idx, step_idx, obs, prev_obs)
             prev_obs = obs
 
-            positions[ep_idx].append(cp.deepcopy(np.array(env.unwrapped._get_ram(), dtype=np.int32)))
+            state_ids[ep_idx].append(cp.deepcopy(np.array(env.unwrapped._get_ram(), dtype=np.int32)))
 
             while True:
 
@@ -101,7 +101,7 @@ class CollectRandomAtariAndSave(StackElement):
                     ep_idx, step_idx,
                     obs, prev_obs
                 )
-                positions[ep_idx].append(cp.deepcopy(np.array(env.unwrapped._get_ram(), dtype=np.int32)))
+                state_ids[ep_idx].append(cp.deepcopy(np.array(env.unwrapped._get_ram(), dtype=np.int32)))
                 prev_obs = obs
 
                 if step_idx >= self.num_steps:
@@ -114,7 +114,7 @@ class CollectRandomAtariAndSave(StackElement):
                 self.logger.info("episode {:d}".format(ep_idx))
 
         self.save_actions(actions)
-        self.save_positions(positions)
+        self.save_state_ids(state_ids)
 
         return {}
 
@@ -133,12 +133,12 @@ class CollectRandomAtariAndSave(StackElement):
         with open(save_path, "wb") as f:
             pickle.dump(actions, f)
 
-    def save_positions(self, positions):
+    def save_state_ids(self, state_ids):
 
-        save_path = os.path.join(self.save_path, self.POSITIONS_TEMPLATE)
+        save_path = os.path.join(self.save_path, self.STATE_IDS_TEMPLATE)
         utils.maybe_create_dirs(utils.get_dir_name(save_path))
         with open(save_path, "wb") as f:
-            pickle.dump(positions, f)
+            pickle.dump(state_ids, f)
 
 class CollectRandomAndSave(StackElement):
     # Collect data using a random policy. Save states as PNG images, and actions and positions as pickles.
