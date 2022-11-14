@@ -19,6 +19,7 @@ class PathDatasetAtari(Dataset):
         self.factored_actions = factored_actions
         self.actions = None
         self.state_ids = None
+        self.is_atari = True
 
         self.load_actions()
         self.load_state_ids()

@@ -19,6 +19,7 @@ class TransitionsDatasetAtari(Dataset):
         self.idx2episode = []
         self.num_steps = 0
         self.actions = None
+        self.is_atari = True
 
         self.load_actions()
         self.build_idx2episode()
