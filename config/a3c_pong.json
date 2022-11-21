@@ -1,0 +1,7 @@
+{
+  "model_config": {
+    "channels": 1,
+    "memsize": 256,
+    "num_actions": 6
+  }
+}
