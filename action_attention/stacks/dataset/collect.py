@@ -40,9 +40,9 @@ def crop_normalize(img, crop_ratio):
 
 prepro = lambda img: resize(img[35:195].mean(2), (80,80)).astype(np.float32).reshape(1,80,80)/255.
 
-def preprocess_state(state):
+def preprocess_state(state, device):
 
-    return torch.tensor(prepro(state))
+    return torch.tensor(prepro(state), device=device)
 def select_action(state, model, hx, eps):
     # select an action using either an epsilon greedy or softmax policy
     value, logit, hx = model((state.view(1, 1, 80, 80), hx))
@@ -54,33 +54,15 @@ def select_action(state, model, hx, eps):
             # random action
             return np.random.randint(logp.size(1))
         else:
-            return torch.argmax(logp, dim=1).numpy()[0]
+            return torch.argmax(logp, dim=1).cpu().numpy()[0]
     else:
         # sample from softmax
         action = torch.exp(logp).multinomial(num_samples=1).data[0]
-        return action.numpy()[0]
+        return action.cpu().numpy()[0]
 
-def reset_rnn_state():
+def reset_rnn_state(device):
     # reset the hidden state of an rnn
-    return torch.zeros(1, 256)
-
-def construct_start_states_set(dup_paths):
-    # go through a dataset and find all start states
-    # we use this to reduce the overlap between train/valid/test sets
-    blacklist_state_ids = set()
-
-    for path in dup_paths:
-
-        f = h5py.File(path, "r")
-
-        # iterate over all episodes, stored in a dict
-        for ep in f.values():
-            # cheap way of making an immutable array
-            blacklist_state_ids.add(ep['state_ids'][0].tobytes())
-
-        f.close()
-
-    return blacklist_state_ids
+    return torch.zeros(1, 256, device=device)
 
 class CollectA3CAtariAndSave(StackElement):
     # Collect data using a random policy. Save states as PNG images, and actions and positions as pickles.
@@ -88,7 +70,7 @@ class CollectA3CAtariAndSave(StackElement):
     ACTIONS_TEMPLATE = "actions.pkl"
     STATE_IDS_TEMPLATE = "state_ids.pkl"
 
-    def __init__(self, save_path, num_episodes, num_steps, min_burnin, max_burnin, eps=0.5, crop=None, factored_actions=True, ):
+    def __init__(self, save_path, device, num_episodes, num_steps, min_burnin, max_burnin, eps=0.5, crop=None, factored_actions=True, ):
 
         super().__init__()
         self.save_path = save_path
@@ -99,6 +81,7 @@ class CollectA3CAtariAndSave(StackElement):
         self.max_burnin = max_burnin
         self.crop = crop
         self.eps = eps
+        self.device = device
         self.INPUT_KEYS = {Constants.ENV, Constants.A3C}
 
     def run(self, bundle: dict, viz=False) -> dict:
@@ -116,12 +99,12 @@ class CollectA3CAtariAndSave(StackElement):
 
         for ep_idx in range(self.num_episodes):
             burnin_steps = np.random.randint(self.min_burnin, self.max_burnin)
-            hx = reset_rnn_state()
+            hx = reset_rnn_state(self.device)
 
             prev_obs = env.reset()
             step_idx = 0
             for _ in range(burnin_steps):
-                action = select_action(preprocess_state(prev_obs), a3c, hx, self.eps)
+                action = select_action(preprocess_state(prev_obs, self.device), a3c, hx, self.eps)
                 prev_obs, _, _, _ = env.step(action)
 
 

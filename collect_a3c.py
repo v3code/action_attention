@@ -55,6 +55,7 @@ def main(save_path, device, num_episodes, min_burnin, max_burnin, env_id, seed, 
         max_burnin=max_burnin,
         min_burnin=min_burnin,
         crop=crop,
+        device=device
     ))
 
 
