@@ -11,6 +11,7 @@ from ...constants import Constants
 from ...stack import StackElement
 from ... import utils
 from skimage.transform import resize
+import shutil
 
 
 class InitEnvAndSeed(StackElement):
@@ -66,11 +67,13 @@ def reset_rnn_state(device):
 
 class CollectA3CAtariAndSave(StackElement):
     # Collect data using a random policy. Save states as PNG images, and actions and positions as pickles.
-    STATE_TEMPLATE = os.path.join("e_{:d}", "s_t_{:d}.npy")
+    STATE_FOLDER_TEMPLATE = "e_{:d}"
+    STATE_TEMPLATE = os.path.join(STATE_FOLDER_TEMPLATE, "s_t_{:d}.npy")
     ACTIONS_TEMPLATE = "actions.pkl"
     STATE_IDS_TEMPLATE = "state_ids.pkl"
 
-    def __init__(self, save_path, device, num_episodes, num_steps, min_burnin, max_burnin, eps=0.5, crop=None, factored_actions=True, ):
+    def __init__(self, save_path, device, num_episodes, num_steps, min_burnin, max_burnin, eps=0.5,
+                 dedup_paths=None, crop=None, factored_actions=True, ):
 
         super().__init__()
         self.save_path = save_path
@@ -78,11 +81,60 @@ class CollectA3CAtariAndSave(StackElement):
         self.factored_actions = factored_actions
         self.num_steps = num_steps
         self.min_burnin = min_burnin
+        self.dedup_paths = dedup_paths
         self.max_burnin = max_burnin
         self.crop = crop
         self.eps = eps
         self.device = device
         self.INPUT_KEYS = {Constants.ENV, Constants.A3C}
+
+    # Returns predicate if episode should stop
+    def construct_blacklist(self):
+        if not self.dedup_paths:
+            return None
+
+        blacklist = set()
+        self.dedup_paths = self.dedup_paths.split(',')
+        for path in self.dedup_paths:
+            state_ids = self.load_state_ids(path)
+
+            for state_steps in state_ids:
+                    blacklist.add(state_steps[0].tobytes())
+
+        return blacklist
+
+
+    def load_state_ids(self, path):
+        load_path = os.path.join(path, self.STATE_IDS_TEMPLATE)
+        print(load_path)
+        if not os.path.isfile(load_path):
+            raise ValueError("State ids not found.")
+        with open(load_path, "rb") as f:
+            state_ids = pickle.load(f)
+        return state_ids
+
+    def delete_episode_observations(self, episode: int):
+        save_path = os.path.join(self.save_path, self.STATE_FOLDER_TEMPLATE.format(episode))
+        if not os.path.isdir(save_path):
+            return
+        shutil.rmtree(save_path)
+
+
+
+
+    def check_duplication(self, blacklist: set, state_id):
+        if not blacklist:
+            return False
+        if state_id in blacklist:
+            return True
+        return False
+
+    def clear_blacklist(self, blacklist, episode_states):
+        for state in episode_states:
+            blacklist.remove(state.tobytes())
+
+
+
 
     def run(self, bundle: dict, viz=False) -> dict:
 
@@ -94,12 +146,16 @@ class CollectA3CAtariAndSave(StackElement):
 
         actions = [[] for _ in range(self.num_episodes)]
         state_ids = [[] for _ in range(self.num_episodes)]
+        blacklist = self.construct_blacklist()
 
 
 
-        for ep_idx in range(self.num_episodes):
+        ep_idx = 0
+        while ep_idx < self.num_episodes:
             burnin_steps = np.random.randint(self.min_burnin, self.max_burnin)
             hx = reset_rnn_state(self.device)
+            episode_states = []
+            episode_actions = []
 
             prev_obs = env.reset()
             step_idx = 0
@@ -113,6 +169,11 @@ class CollectA3CAtariAndSave(StackElement):
                 prev_obs = crop_normalize(prev_obs, self.crop)
 
             obs, _, _, _ = env.step(0)
+            state = cp.deepcopy(np.array(env.unwrapped._get_ram(), dtype=np.int32))
+
+            if self.check_duplication(blacklist, state.tobytes()):
+                continue
+
 
             if self.crop:
                 obs = crop_normalize(obs, self.crop)
@@ -120,7 +181,9 @@ class CollectA3CAtariAndSave(StackElement):
             self.save_obs(ep_idx, step_idx, obs, prev_obs)
             prev_obs = obs
 
-            state_ids[ep_idx].append(cp.deepcopy(np.array(env.unwrapped._get_ram(), dtype=np.int32)))
+            episode_states.append(state)
+            if blacklist:
+                blacklist.add(state.tobytes())
 
             while True:
 
@@ -129,23 +192,30 @@ class CollectA3CAtariAndSave(StackElement):
                 action = env.action_space.sample()
                 obs, _, done, _ = env.step(action)
 
+                state = cp.deepcopy(np.array(env.unwrapped._get_ram(), dtype=np.int32))
 
                 if self.crop:
                     obs = crop_normalize(obs, self.crop)
-                actions[ep_idx].append(action)
+                episode_actions.append(action)
                 step_idx += 1
                 self.save_obs(
                     ep_idx, step_idx,
                     obs, prev_obs
                 )
-                state_ids[ep_idx].append(cp.deepcopy(np.array(env.unwrapped._get_ram(), dtype=np.int32)))
+
+                episode_states.append(state)
                 prev_obs = obs
 
                 if step_idx >= self.num_steps:
-                    break
+                    done = True
 
                 if done:
+                    actions[ep_idx] = episode_actions
+                    state_ids[ep_idx] = episode_states
+                    ep_idx += 1
+
                     break
+
 
             if ep_idx > 0 and ep_idx % 10 == 0:
                 self.logger.info("episode {:d}".format(ep_idx))

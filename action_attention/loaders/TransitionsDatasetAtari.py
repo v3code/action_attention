@@ -9,7 +9,7 @@ class TransitionsDatasetAtari(Dataset):
     # This data loader is used during training.
     STATE_TEMPLATE = os.path.join("e_{:d}", "s_t_{:d}.npy")
     ACTIONS_TEMPLATE = "actions.pkl"
-    POSITIONS_TEMPLATE = "positions.pkl"
+    STATE_IDS_TEMPLATE = "state_ids.pkl"
 
     def __init__(self, root_path, factored_actions=True):
 

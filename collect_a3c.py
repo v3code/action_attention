@@ -27,12 +27,13 @@ def config():
     crop = None
     min_burnin = 58
     max_burnin = 100
+    dedup_paths = None
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 
 @ex.automain
-def main(save_path, device, num_episodes, min_burnin, max_burnin, env_id, seed, crop, num_steps, load_path):
+def main(save_path, device, num_episodes, min_burnin, dedup_paths, max_burnin, env_id, seed, crop, num_steps, load_path):
 
     logger = utils.Logger()
     model_config = get_model_config()
@@ -55,7 +56,8 @@ def main(save_path, device, num_episodes, min_burnin, max_burnin, env_id, seed, 
         max_burnin=max_burnin,
         min_burnin=min_burnin,
         crop=crop,
-        device=device
+        device=device,
+        dedup_paths=dedup_paths
     ))
 
 
