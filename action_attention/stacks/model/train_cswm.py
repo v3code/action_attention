@@ -20,7 +20,7 @@ from ...loaders.PathDataset import PathDataset
 
 class InitModel(StackElement):
     # Initialize either baseline C-SWM, C-SWM with hard attention or C-SWM with soft attention.
-    def __init__(self, model_config, learning_rate, device, use_hard_attention, use_soft_attention, load_path=None):
+    def __init__(self, continue_train, model_config, learning_rate, device, use_hard_attention, use_soft_attention, load_path=None):
 
         super().__init__()
         self.model_config = model_config
@@ -29,6 +29,7 @@ class InitModel(StackElement):
         self.use_hard_attention = use_hard_attention
         self.use_soft_attention = use_soft_attention
         self.load_path = load_path
+        self.continue_train = continue_train
 
         self.OUTPUT_KEYS = {Constants.MODEL, Constants.OPTIM}
 
@@ -48,7 +49,8 @@ class InitModel(StackElement):
 
         if self.load_path is not None:
             model.load_state_dict(torch.load(self.load_path, map_location=self.device))
-            model.eval()
+            if not self.continue_train:
+                model.eval()
 
         optimizer = torch.optim.Adam(model.parameters(), lr=self.learning_rate)
         return {Constants.MODEL: model, Constants.OPTIM: optimizer}

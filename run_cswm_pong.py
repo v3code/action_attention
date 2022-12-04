@@ -38,10 +38,11 @@ def config():
     viz_names = None
     model_conf_name = None
     eval_steps = '1, 5, 10'
+    continue_train = False
 
 
 @ex.automain
-def main(seed, use_hard_attention, use_soft_attention, device, learning_rate, batch_size, epochs, model_save_path,
+def main(seed,continue_train, use_hard_attention, use_soft_attention, device, learning_rate, batch_size, epochs, model_save_path,
          model_load_path, dataset_path, eval_dataset_path, viz_names, eval_steps):
 
     model_config = get_model_config()
@@ -59,10 +60,11 @@ def main(seed, use_hard_attention, use_soft_attention, device, learning_rate, ba
         device=device,
         load_path=model_load_path,
         use_hard_attention=use_hard_attention,
-        use_soft_attention=use_soft_attention
+        use_soft_attention=use_soft_attention,
+        continue_train=continue_train
     ))
 
-    if model_load_path is None:
+    if model_load_path is None or continue_train:
         # train model
         stack.register(InitTransitionsLoaderAtari(
             root_path=dataset_path,
