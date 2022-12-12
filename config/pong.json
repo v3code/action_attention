@@ -9,6 +9,8 @@
         "hinge": 1.0,
         "sigma": 0.5,
         "ignore_action": false,
+        "recon_loss_coef": 0.2,
+        "decoder_init_resolution": [50, 50],
         "copy_action": false,
         "num_gnn_layers": 3,
         "encoder": "medium",

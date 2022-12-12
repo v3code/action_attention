@@ -2,6 +2,9 @@ import signal
 import numpy as np
 import torch
 from action_attention import utils
+import wandb
+
+from action_attention.constants import Constants
 
 
 class StackElement:
@@ -102,6 +105,25 @@ class Sieve(StackElement):
                 new_bundle[key] = bundle[key]
 
         return new_bundle
+
+class WandbLogger(StackElement):
+    def __init__(self, project_name: str, run_name: str):
+        super().__init__()
+        self.project_name = project_name
+        self.run_name = run_name
+        self.run = None
+
+
+    def run(self, bundle: dict, viz=False) -> dict:
+
+        run = wandb.init(name=self.run_name, project=self.project_name)
+        self.run = run
+
+        return {Constants.WANDB_RUN: run}
+
+    def CLOSE_FC(self):
+        if self.run:
+            self.run.finish()
 
 
 class SacredLog(StackElement):

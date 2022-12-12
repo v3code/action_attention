@@ -4,6 +4,7 @@ from collections import defaultdict
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
+import wandb
 from torch.utils import data as torch_data
 
 from ...loaders.PathDatasetAtari import PathDatasetAtari
@@ -143,6 +144,7 @@ class Train(StackElement):
         model = bundle[Constants.MODEL]
         optimizer = bundle[Constants.OPTIM]
         train_loader = bundle[Constants.TRAIN_LOADER]
+        logger = bundle[Constants.WANDB_RUN]
 
         self.logger.info('Starting model training...')
         step = 0
@@ -157,11 +159,18 @@ class Train(StackElement):
 
             model.train()
             train_loss = 0
+            visualise_epoch = epoch % 10 != 0
+            random_batch_idx = np.random.randint(1, len(train_loader))
 
-            for batch_idx, data_batch in enumerate(train_loader):
+            for batch_idx, data_batch in enumerate(train_loader):\
 
                 data_batch = [tensor.to(self.device) for tensor in data_batch]
                 optimizer.zero_grad()
+
+                batch_size = data_batch[0].shape[0]
+                visualise_batch = random_batch_idx / batch_size >= batch_idx
+
+
 
                 if viz:
                     self.logger.info("Visualizing inputs.")
@@ -172,13 +181,36 @@ class Train(StackElement):
                         plt.imshow(data_batch[2][0, i].cpu().numpy().transpose((1, 2, 0)))
                     plt.show()
 
-                loss = model.contrastive_loss(*data_batch)
+                loss, recon_combined, recon, mask = model.contrastive_loss(*data_batch)
+
+                if visualise_epoch and visualise_batch:
+                    batch_data_idx = np.random.randint(0, batch_size - 1)
+                    image = data_batch[0]
+                    if image.shape[1] != 3:
+                        image = image[:, 3:, :, :]
+                    wandb.log({
+                        "Train/Reconstruction": [
+                            wandb.Image(image[batch_data_idx], caption='Initial Scene'),
+                            wandb.Image(recon_combined[batch_data_idx],
+                                        caption='Reconstructed Scene'),
+                        ]})
+
+                    wandb.log({
+                        "Train/Slots": [wandb.Image(recon[batch_data_idx][i], caption=f'Slot {i}') for i in range(self.num_objects)]
+                    })
+
+                    wandb.log({
+                        "Train/Masks": [wandb.Image(mask[batch_data_idx][i], caption=f'Mask {i}') for i in range(self.num_slots)]
+                    })
 
                 loss.backward()
                 train_loss += loss.item()
                 optimizer.step()
 
                 losses.append(loss.item())
+                wandb.log({
+                    'Loss': loss.item()
+                })
 
                 if batch_idx % self.LOG_INTERVAL == 0:
                     self.logger.info(
@@ -245,9 +277,18 @@ class Eval(StackElement):
 
         with torch.no_grad():
 
+            random_batch_idx = np.random.randint(1, len(eval_loader))
+
             for batch_idx, data_batch in enumerate(eval_loader):
 
                 data_batch = [[t.to(self.device) for t in tensor] for tensor in data_batch]
+
+
+                batch_size = data_batch[0].shape[0]
+                visualise_batch = random_batch_idx / batch_size >= batch_idx
+
+
+
 
                 if self.dedup:
                     observations, actions, state_ids = data_batch[:3]
@@ -257,13 +298,40 @@ class Eval(StackElement):
                 if observations[0].size(0) != self.batch_size:
                     continue
 
+
                 obs = observations[0]
                 next_obs = observations[-1]
                 if self.dedup:
                     next_id = state_ids[-1]
 
+
                 state = model.forward(obs)
                 next_state = model.forward(next_obs)
+
+
+                if visualise_batch:
+                    batch_data_idx = np.random.randint(0, batch_size - 1)
+                    viz_state = state[batch_data_idx].reshape(1, -1, -1)
+                    recon, mask, recon_combined = model.decode_objects(viz_state, batch_size)
+                    image = observations
+                    if image.shape[1] != 3:
+                        image = image[:, 3:, :, :]
+                    wandb.log({
+                        "Eval/Reconstruction": [
+                            wandb.Image(image[batch_data_idx], caption='Initial Scene'),
+                            wandb.Image(recon_combined[0],
+                                        caption='Reconstructed Scene'),
+                        ]})
+
+                    wandb.log({
+                        "Eval/Slots": [wandb.Image(recon[0][i], caption=f'Slot {i}') for i in
+                                        range(model.num_objects)]
+                    })
+
+                    wandb.log({
+                        "Eval/Masks": [wandb.Image(mask[0][i], caption=f'Mask {i}') for i in
+                                        range(model.num_objects)]
+                    })
 
                 pred_state = state
                 for i in range(self.num_steps):
@@ -408,9 +476,15 @@ class Eval(StackElement):
             result_hits = hits_at[k] / float(num_samples)
             res[Constants.HITS.name + "_at_{:d}".format(k)] = result_hits
             self.logger.info("Hits @ {}: {}".format(k, result_hits))
+            wandb.log({
+                f'Hits @ {k}/{self.num_steps} steps': result_hits
+            })
 
         result_mrr = rr_sum / float(num_samples)
         res[Constants.MRR] = result_mrr
         self.logger.info("MRR: {}".format(result_mrr))
+        wandb.log({
+            f'MRR/{self.num_steps} steps': result_mrr
+        })
 
         return res

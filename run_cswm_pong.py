@@ -1,7 +1,7 @@
 import torch
 
 from action_attention import utils
-from action_attention.stack import Stack, Seeds, SacredLog, Sieve
+from action_attention.stack import Stack, Seeds, SacredLog, Sieve, WandbLogger
 from action_attention.stacks.model.train_cswm import InitModel, InitTransitionsLoader, InitPathLoader, Train, Eval, \
     InitTransitionsLoaderAtari, InitPathLoaderAtari
 from action_attention.stacks.model.slot_correlation import MeasureSlotCorrelation
@@ -33,6 +33,8 @@ def config():
     epochs = 100
     model_save_path = None
     model_load_path = None
+    project_name = 'CSWM Action attention'
+    run_name = None
     dataset_path = "data/shapes_train"
     eval_dataset_path = "data/shapes_eval"
     viz_names = None
@@ -42,7 +44,7 @@ def config():
 
 
 @ex.automain
-def main(seed,continue_train, use_hard_attention, use_soft_attention, device, learning_rate, batch_size, epochs, model_save_path,
+def main(seed,continue_train, run_name, project_name, use_hard_attention, use_soft_attention, device, learning_rate, batch_size, epochs, model_save_path,
          model_load_path, dataset_path, eval_dataset_path, viz_names, eval_steps):
 
     model_config = get_model_config()
@@ -54,6 +56,8 @@ def main(seed,continue_train, use_hard_attention, use_soft_attention, device, le
         device=device,
         seed=seed
     ))
+
+    stack.register(WandbLogger(run_name=run_name, project_name=project_name))
     stack.register(InitModel(
         model_config=model_config,
         learning_rate=learning_rate,
