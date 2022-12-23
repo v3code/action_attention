@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import stats
+import wandb
 import torch
 from ...constants import Constants
 from ...stack import StackElement
@@ -57,6 +58,7 @@ class MeasureSlotCorrelation(StackElement):
         pearson_list = np.array(pearson_list, dtype=np.float32)
         abs_avg = np.mean(np.abs(pearson_list))
         self.logger.info("Average absolute Pearson: {:f}".format(abs_avg))
+        wandb.log({"Correlation": abs_avg})
         return {
             Constants.CORRELATION: abs_avg
         }

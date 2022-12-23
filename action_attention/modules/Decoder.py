@@ -11,13 +11,15 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.decoder_cnn = nn.Sequential(
             nn.ConvTranspose2d(in_channels, hidden_channels,
-                               kernel_size=3, stride=(1, 1), padding=1), nn.ReLU(),
+                               kernel_size=3, stride=(1, 1), padding=1), nn.GELU(),
             nn.ConvTranspose2d(hidden_channels, hidden_channels,
-                               kernel_size=3, stride=(1, 1), padding=1), nn.ReLU(),
+                               kernel_size=3, stride=(1, 1), padding=1), nn.GELU(),
             nn.ConvTranspose2d(hidden_channels, hidden_channels,
-                               kernel_size=3, stride=(1, 1), padding=1), nn.ReLU(),
+                               kernel_size=3, stride=(1, 1), padding=1), nn.GELU(),
+            nn.ConvTranspose2d(hidden_channels, hidden_channels,
+                               kernel_size=3, stride=(1, 1), padding=1), nn.GELU(),
             nn.ConvTranspose2d(hidden_channels, out_channels,
-                               kernel_size=3, stride=(1, 1), padding=1), nn.ReLU(),
+                               kernel_size=3, stride=(1, 1), padding=1), nn.GELU(),
         )
     def forward(self, x):
         return self.decoder_cnn(x)

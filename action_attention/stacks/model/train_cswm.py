@@ -69,7 +69,7 @@ class InitTransitionsLoaderAtari(StackElement):
     def run(self, bundle: dict, viz=False) -> dict:
 
         dataset = TransitionsDatasetAtari(self.root_path, self.factored_actions)
-        train_loader = torch_data.DataLoader(dataset, batch_size=self.batch_size, shuffle=True, num_workers=16)
+        train_loader = torch_data.DataLoader(dataset, batch_size=self.batch_size, shuffle=True, num_workers=4)
         return {Constants.TRAIN_LOADER: train_loader}
 
 
@@ -103,7 +103,7 @@ class InitTransitionsLoader(StackElement):
     def run(self, bundle: dict, viz=False) -> dict:
 
         dataset = TransitionsDataset(self.root_path, self.factored_actions)
-        train_loader = torch_data.DataLoader(dataset, batch_size=self.batch_size, shuffle=True, num_workers=16)
+        train_loader = torch_data.DataLoader(dataset, batch_size=self.batch_size, shuffle=True, num_workers=4)
         return {Constants.TRAIN_LOADER: train_loader}
 
 
@@ -161,7 +161,8 @@ class Train(StackElement):
             train_loss = 0
             visualise_epoch = epoch % 10 != 0
             random_batch_idx = np.random.randint(1, len(train_loader))
-
+            visualised = False
+            
             for batch_idx, data_batch in enumerate(train_loader):\
 
                 data_batch = [tensor.to(self.device) for tensor in data_batch]
@@ -183,9 +184,10 @@ class Train(StackElement):
 
                 loss, recon_combined, recon, mask = model.contrastive_loss(*data_batch)
 
-                if visualise_epoch and visualise_batch:
+                if visualise_epoch and visualise_batch and not visualised:
                     batch_data_idx = np.random.randint(0, batch_size - 1)
                     image = data_batch[0]
+                    visualised = True
                     if image.shape[1] != 3:
                         image = image[:, 3:, :, :]
                     wandb.log({
@@ -196,11 +198,11 @@ class Train(StackElement):
                         ]})
 
                     wandb.log({
-                        "Train/Slots": [wandb.Image(recon[batch_data_idx][i], caption=f'Slot {i}') for i in range(self.num_objects)]
+                        "Train/Slots": [wandb.Image(recon[batch_data_idx][i], caption=f'Slot {i}') for i in range(model.num_objects)]
                     })
 
                     wandb.log({
-                        "Train/Masks": [wandb.Image(mask[batch_data_idx][i], caption=f'Mask {i}') for i in range(self.num_slots)]
+                        "Train/Masks": [wandb.Image(mask[batch_data_idx][i], caption=f'Mask {i}') for i in range(model.num_objects)]
                     })
 
                 loss.backward()
@@ -209,7 +211,8 @@ class Train(StackElement):
 
                 losses.append(loss.item())
                 wandb.log({
-                    'Loss': loss.item()
+                    'Loss': loss.item(),
+                    'Reconstruction Loss': model.reconstruction_loss.item()
                 })
 
                 if batch_idx % self.LOG_INTERVAL == 0:
@@ -278,13 +281,14 @@ class Eval(StackElement):
         with torch.no_grad():
 
             random_batch_idx = np.random.randint(1, len(eval_loader))
+            visualised = False
 
             for batch_idx, data_batch in enumerate(eval_loader):
 
                 data_batch = [[t.to(self.device) for t in tensor] for tensor in data_batch]
 
 
-                batch_size = data_batch[0].shape[0]
+                batch_size = data_batch[0][0].shape[0]
                 visualise_batch = random_batch_idx / batch_size >= batch_idx
 
 
@@ -309,11 +313,12 @@ class Eval(StackElement):
                 next_state = model.forward(next_obs)
 
 
-                if visualise_batch:
+                if visualise_batch and not visualised:
                     batch_data_idx = np.random.randint(0, batch_size - 1)
-                    viz_state = state[batch_data_idx].reshape(1, -1, -1)
-                    recon, mask, recon_combined = model.decode_objects(viz_state, batch_size)
-                    image = observations
+                    viz_state = state[batch_data_idx].unsqueeze(dim=0)
+                    recon, mask, recon_combined = model.decode_objects(viz_state, 1)
+                    image = observations[0]
+                    visualised = True
                     if image.shape[1] != 3:
                         image = image[:, 3:, :, :]
                     wandb.log({

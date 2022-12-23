@@ -8,7 +8,7 @@ from action_attention.stacks.model.slot_correlation import MeasureSlotCorrelatio
 from action_attention import paths
 from action_attention.constants import Constants
 
-ex = utils.setup_experiment("config/pong.json")
+ex = utils.setup_experiment("config/spinv.json")
 ex.add_config(paths.CFG_MODEL_PONG_CSWM)
 
 

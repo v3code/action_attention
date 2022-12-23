@@ -31,7 +31,7 @@ class StackElement:
 
         if mock:
             bundle = self.mock_input()
-
+        
         self.validate_bundle_(bundle, self.INPUT_KEYS)
 
         output_bundle = self.run(bundle, viz=viz)
@@ -111,19 +111,20 @@ class WandbLogger(StackElement):
         super().__init__()
         self.project_name = project_name
         self.run_name = run_name
-        self.run = None
+        self.wandb_run = None
+        self.INPUT_KEYS = {}
+        self.OUTPUT_KEYS = {Constants.WANDB_RUN}
 
 
     def run(self, bundle: dict, viz=False) -> dict:
+        wandb_run = wandb.init(name=self.run_name, project=self.project_name)
+        self.wandb_run = wandb_run
 
-        run = wandb.init(name=self.run_name, project=self.project_name)
-        self.run = run
-
-        return {Constants.WANDB_RUN: run}
+        return {Constants.WANDB_RUN: wandb_run}
 
     def CLOSE_FC(self):
-        if self.run:
-            self.run.finish()
+        if self.wandb_run:
+            self.wandb_run.finish()
 
 
 class SacredLog(StackElement):
@@ -216,7 +217,7 @@ class Stack:
 
             if mock:
                 assert element.has_mock
-
+            
             if viz:
                 bundle = element.forward_viz(bundle, mock=mock)
             else:
