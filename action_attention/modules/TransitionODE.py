@@ -37,7 +37,7 @@ class TransitionModel(nn.Module):
         if not self.ignore_action:
             action = self.process_action_(action, viz)
             action = self.ffc_action(action)
-            state = state * action
+            state = state + action
         out = self.ffc_out(state)
         out.reshape(state.shape)
         return out
