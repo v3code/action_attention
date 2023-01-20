@@ -163,7 +163,7 @@ class Train(StackElement):
             random_batch_idx = np.random.randint(1, len(train_loader))
             visualised = False
             
-            for batch_idx, data_batch in enumerate(train_loader):\
+            for batch_idx, data_batch in enumerate(train_loader):
 
                 data_batch = [tensor.to(self.device) for tensor in data_batch]
                 optimizer.zero_grad()
