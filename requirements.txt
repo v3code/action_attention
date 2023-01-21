@@ -14,4 +14,4 @@ torchvision
 torchaudio
 PyQt5==5.15.6
 h5py~=3.7.0
-torchdyn~=1.0.3
+torchdyn
